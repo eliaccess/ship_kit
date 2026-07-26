@@ -8,7 +8,17 @@ type Run = { id: string; status: "running" | "done" | "error"; error: string | n
 
 const EMOJI_RE = /^(\p{Extended_Pictographic}(?:️)?(?:‍\p{Extended_Pictographic})*)\s*/u;
 
-export default function ChatPanel({ projectId }: { projectId: string }) {
+export default function ChatPanel({
+  projectId,
+  isExpo,
+  hasSuccessfulBuild,
+  onShowBuilds,
+}: {
+  projectId: string;
+  isExpo: boolean;
+  hasSuccessfulBuild: boolean;
+  onShowBuilds: () => void;
+}) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [run, setRun] = useState<Run>(null);
   const [input, setInput] = useState("");
@@ -18,14 +28,33 @@ export default function ChatPanel({ projectId }: { projectId: string }) {
   const [agentLabel, setAgentLabel] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const countRef = useRef(0);
+  const prefillDone = useRef(false);
 
   const running = run?.status === "running";
 
   const load = useCallback(async () => {
     const d = await fetch(`/api/projects/${projectId}/chat`).then((r) => r.json());
-    setMessages(d.messages ?? []);
+    const msgs: Message[] = d.messages ?? [];
+    setMessages(msgs);
     setRun(d.run ?? null);
-  }, [projectId]);
+    // Conversion prefill: only on first arrival, only if the project is still a
+    // web app and nothing has been asked yet — then drop the ?convert flag.
+    if (!prefillDone.current) {
+      prefillDone.current = true;
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("convert") === "1") {
+        const askedBefore = msgs.some((m) => m.role === "user");
+        if (!isExpo && !askedBefore) {
+          setInput(
+            "This repository is a web app. Please rework it into a native Expo (React Native) mobile app: keep the same screens, features and branding, and make it buildable with EAS. Explain what you did when finished."
+          );
+        }
+        params.delete("convert");
+        const qs = params.toString();
+        window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+      }
+    }
+  }, [projectId, isExpo]);
 
   useEffect(() => {
     load();
@@ -53,11 +82,6 @@ export default function ChatPanel({ projectId }: { projectId: string }) {
         );
       })
       .catch(() => {});
-    if (new URLSearchParams(window.location.search).get("convert") === "1") {
-      setInput(
-        "This repository is a web app. Please rework it into a native Expo (React Native) mobile app: keep the same screens, features and branding, and make it buildable with EAS. Explain what you did when finished."
-      );
-    }
   }, [projectId]);
 
   useEffect(() => {
@@ -132,6 +156,29 @@ export default function ChatPanel({ projectId }: { projectId: string }) {
         {running && !activeRunHasSteps && <StepRow content="🤔 Reading your request…" active />}
         {run?.status === "error" && run.error && (
           <div className="rounded-xl bg-red-50 px-4 py-2 text-sm text-red-800">⚠ {run.error}</div>
+        )}
+        {!running && isExpo && !hasSuccessfulBuild && messages.length > 0 && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+            <p className="text-sm font-semibold text-emerald-900">🎉 Your app is native and ready to build</p>
+            <p className="mt-1 text-sm text-emerald-800">
+              One choice first: builds can run in the <strong>cloud</strong> (Expo&apos;s servers, zero setup,
+              ~30 free builds/month) or <strong>locally</strong> on this machine (unlimited, needs the toolchain).
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <a
+                href="/settings"
+                className="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-sm text-emerald-900 hover:bg-emerald-100"
+              >
+                ⚙️ Choose where builds run
+              </a>
+              <button
+                onClick={onShowBuilds}
+                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+              >
+                🚀 Start a build
+              </button>
+            </div>
+          </div>
         )}
         <div ref={bottomRef} />
       </div>

@@ -1,5 +1,7 @@
 import { db } from "../db";
 import { chatTurn } from "./agent";
+import { detectKind } from "../git";
+import { workspaceDir } from "../paths";
 
 /** A short line starting with an emoji = one activity-feed step. */
 export function isStepLine(line: string): boolean {
@@ -80,8 +82,27 @@ async function executeRun(runId: string, projectId: string, message: string): Pr
   }
 
   // Don't duplicate the closing summary: it's saved as the assistant bubble.
-  if (pending && !result.includes(pending)) await flush();
+  // Compare whitespace-normalized — markdown re-wrapping must not defeat the check.
+  const norm = (s: string) => s.replace(/\s+/g, " ").trim();
+  if (pending && !norm(result).includes(norm(pending))) await flush();
   else pending = null;
+
+  // The agent may have transformed the project (web → Expo): re-detect so the
+  // Overview and Builds tabs reflect reality without waiting for a re-sync.
+  try {
+    const kind = detectKind(workspaceDir(projectId));
+    await db.project.update({
+      where: { id: projectId },
+      data: {
+        kind,
+        isExpo: kind === "expo",
+        ...(kind === "expo" ? { statusMsg: "Expo app detected — ready to build." } : {}),
+      },
+    });
+  } catch {
+    /* project may have been deleted mid-run */
+  }
+
   if (!errored) {
     await db.chatRun.update({ where: { id: runId }, data: { status: "done", finishedAt: new Date() } });
   }

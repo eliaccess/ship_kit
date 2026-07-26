@@ -12,6 +12,7 @@ const BRIEF = [
   "Commit your changes with git after each coherent change (git add -A && git commit).",
   "PROGRESS NARRATION: before each phase of work, output ONE standalone short line (under 12 words) starting with a fitting emoji, e.g. '🔍 Exploring the project structure', '📱 Recreating the home screen natively', '🔐 Defining sensor permissions for iOS', '🇪🇺 Checking GDPR compliance of data flows'. These lines are shown to the user as a live activity feed — no markdown, no numbering, one line each.",
   "When fully finished, write a final summary in plain, non-technical language.",
+  "NEVER tell the user to run terminal commands (eas build, npm, git…) — they are non-technical. Builds happen from the platform's Builds tab, accounts and credentials from the Setup tab. Point them there instead.",
 ].join(" ");
 
 export type ChatEvent =
@@ -95,6 +96,10 @@ function runClaude(projectId: string, dir: string, message: string): Spawned {
     "--output-format", "stream-json",
     "--verbose",
     "--permission-mode", "acceptEdits",
+    // Headless runs can't ask for approval — allowlist the safe commands the
+    // brief requires (committing work, installing deps, expo tooling).
+    "--allowedTools",
+    "Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(npm install:*),Bash(npm run:*),Bash(npx expo:*),Bash(mkdir:*),Bash(ls:*)",
     "--append-system-prompt", BRIEF,
   ];
   const prior = readSession(projectId, "claude");

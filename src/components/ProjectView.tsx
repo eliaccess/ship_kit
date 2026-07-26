@@ -157,7 +157,14 @@ export default function ProjectView({ id }: { id: string }) {
 
       {tab === "Setup" && <WizardPanel projectId={id} />}
       {tab === "Builds" && <BuildsPanel projectId={id} project={project} onChange={load} />}
-      {tab === "Chat" && <ChatPanel projectId={id} />}
+      {tab === "Chat" && (
+        <ChatPanel
+          projectId={id}
+          isExpo={project.isExpo}
+          hasSuccessfulBuild={project.builds.some((b) => b.status === "success")}
+          onShowBuilds={() => setTab("Builds")}
+        />
+      )}
     </div>
   );
 }
