@@ -9,22 +9,45 @@ const GLOBAL_SETTING_INPUTS = new Set(["github_pat", "expo_token"]);
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const states = await db.wizardState.findMany({ where: { projectId: id } });
+  const [states, project, credentials, settings] = await Promise.all([
+    db.wizardState.findMany({ where: { projectId: id } }),
+    db.project.findUnique({ where: { id } }),
+    db.credential.findMany({ where: { projectId: id }, select: { key: true } }),
+    db.setting.findMany({ select: { key: true } }),
+  ]);
   const stateById = new Map(states.map((s) => [s.stepId, s]));
-  const steps = WIZARD_STEPS.map((s) => ({
-    id: s.id,
-    phase: s.phase,
-    optional: s.optional,
-    requires: s.requires,
-    title: s.title,
-    summary: s.summary,
-    clockNote: s.clockNote,
-    instructionsMarkdown: s.instructionsMarkdown,
-    verifyHints: s.verifyHints,
-    inputs: s.inputs.map(({ name, label, type, secret, placeholder }) => ({ name, label, type, secret, placeholder })),
-    status: stateById.get(s.id)?.status ?? "pending",
-    data: stateById.get(s.id)?.data ? JSON.parse(stateById.get(s.id)!.data!) : null,
-  }));
+  const hasCred = (key: string) => credentials.some((c) => c.key === key);
+  const hasSetting = (key: string) => settings.some((s) => s.key === key);
+
+  // A step is done when its EVIDENCE exists, wherever the value was entered
+  // (wizard, Settings page, import-error recovery…) — not only via this form.
+  const evidence: Record<string, boolean> = {
+    "github-pat": hasSetting("github_pat"),
+    "expo-account-token": hasSetting("expo_token"),
+    "asc-api-key": hasCred("asc_key_id") && hasCred("asc_issuer_id") && hasCred("asc_key_p8"),
+    "play-service-account": hasCred("play_service_account_json"),
+    "app-identity": Boolean(project?.appName && project?.bundleId),
+    "google-signin-oauth": hasCred("google_web_client_id"),
+  };
+
+  const steps = WIZARD_STEPS.map((s) => {
+    const state = stateById.get(s.id);
+    const status = state?.status === "skipped" ? "skipped" : state?.status === "done" || evidence[s.id] ? "done" : "pending";
+    return {
+      id: s.id,
+      phase: s.phase,
+      optional: s.optional,
+      requires: s.requires,
+      title: s.title,
+      summary: s.summary,
+      clockNote: s.clockNote,
+      instructionsMarkdown: s.instructionsMarkdown,
+      verifyHints: s.verifyHints,
+      inputs: s.inputs.map(({ name, label, type, secret, placeholder }) => ({ name, label, type, secret, placeholder })),
+      status,
+      data: state?.data ? JSON.parse(state.data) : null,
+    };
+  });
   return NextResponse.json(steps);
 }
 
