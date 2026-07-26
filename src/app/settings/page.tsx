@@ -1,12 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import MachinePanel from "@/components/MachinePanel";
 
 const FIELDS = [
   { key: "github_pat", label: "GitHub personal access token", hint: "Lets ShipKit clone your private repositories (read-only Contents permission)." },
   { key: "expo_token", label: "Expo access token", hint: "Powers the Android/iOS build pipeline (expo.dev → Account settings → Access tokens)." },
 ];
+
+function BackButton() {
+  const router = useRouter();
+  return (
+    <button
+      onClick={() => (window.history.length > 1 ? router.back() : router.push("/"))}
+      className="-mb-6 rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-stone-600 hover:bg-stone-100"
+    >
+      ← Back
+    </button>
+  );
+}
 
 export default function SettingsPage() {
   const [presence, setPresence] = useState<Record<string, boolean>>({});
@@ -35,6 +48,7 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-xl space-y-10">
+      <BackButton />
       <MachinePanel />
       <h1 className="text-lg font-semibold">Tokens</h1>
       <p className="text-sm text-stone-500">

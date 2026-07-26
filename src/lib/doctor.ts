@@ -40,6 +40,18 @@ function findAndroidSdk(): string | null {
 export async function runDoctor(): Promise<DoctorCheck[]> {
   const checks: DoctorCheck[] = [];
 
+  // Probe everything concurrently — sequential probes made the Settings page feel slow.
+  const [git, claude, expoToken, javaA, javaB, xcode, pods] = await Promise.all([
+    cmdVersion("git", ["--version"]),
+    cmdVersion("claude", ["--version"]),
+    getSetting(SETTING_KEYS.EXPO_TOKEN),
+    cmdVersion("java", ["--version"]),
+    cmdVersion("/opt/homebrew/opt/openjdk/bin/java", ["--version"]),
+    process.platform === "darwin" ? cmdVersion("xcodebuild", ["-version"]) : Promise.resolve(null),
+    process.platform === "darwin" ? cmdVersion("pod", ["--version"]) : Promise.resolve(null),
+  ]);
+  const java = javaA ?? javaB;
+
   // ── Core ──────────────────────────────────────────────────────────────
   const node = process.versions.node;
   checks.push({
@@ -51,7 +63,6 @@ export async function runDoctor(): Promise<DoctorCheck[]> {
     fixMarkdown: null,
   });
 
-  const git = await cmdVersion("git", ["--version"]);
   checks.push({
     id: "git",
     label: "Git",
@@ -62,7 +73,6 @@ export async function runDoctor(): Promise<DoctorCheck[]> {
   });
 
   // ── Coding agent (Claude Code) ────────────────────────────────────────
-  const claude = await cmdVersion("claude", ["--version"]);
   checks.push({
     id: "claude",
     label: "Claude Code (the coding agent behind Chat)",
@@ -82,7 +92,6 @@ export async function runDoctor(): Promise<DoctorCheck[]> {
   });
 
   // ── Expo (needed for BOTH cloud and local builds) ─────────────────────
-  const expoToken = await getSetting(SETTING_KEYS.EXPO_TOKEN);
   checks.push({
     id: "expo-token",
     label: "Expo account token",
@@ -112,7 +121,6 @@ export async function runDoctor(): Promise<DoctorCheck[]> {
         ].join("\n"),
   });
 
-  const java = (await cmdVersion("java", ["--version"])) ?? (await cmdVersion("/opt/homebrew/opt/openjdk/bin/java", ["--version"]));
   checks.push({
     id: "java",
     label: "Java JDK (local Android builds)",
@@ -124,7 +132,6 @@ export async function runDoctor(): Promise<DoctorCheck[]> {
 
   // ── iOS local toolchain (macOS only) ──────────────────────────────────
   if (process.platform === "darwin") {
-    const xcode = await cmdVersion("xcodebuild", ["-version"]);
     checks.push({
       id: "xcode",
       label: "Xcode (local iOS builds)",
@@ -135,7 +142,6 @@ export async function runDoctor(): Promise<DoctorCheck[]> {
         ? null
         : "Install Xcode from the Mac App Store, open it once to accept the license, then run `sudo xcode-select -s /Applications/Xcode.app`. Only needed for local iOS builds — cloud mode builds iOS without Xcode.",
     });
-    const pods = await cmdVersion("pod", ["--version"]);
     checks.push({
       id: "cocoapods",
       label: "CocoaPods (local iOS builds)",

@@ -6,6 +6,31 @@ import ReactMarkdown from "react-markdown";
 type Message = { id: string; role: string; kind: string; content: string; runId: string | null };
 type Run = { id: string; status: "running" | "done" | "error"; error: string | null } | null;
 
+type PlatformReadiness = { platform: "android" | "ios"; mode: string | null; ready: boolean; missing: string[] };
+
+function computeReadiness(
+  checks: { id: string; ok: boolean }[],
+  modes: { android: string | null; ios: string | null }
+): PlatformReadiness[] {
+  const ok = (id: string) => checks.find((c) => c.id === id)?.ok ?? false;
+  return (["android", "ios"] as const).map((platform) => {
+    const mode = modes[platform];
+    if (!mode) return { platform, mode, ready: false, missing: ["no method selected yet"] };
+    const missing: string[] = [];
+    if (!ok("expo-token")) missing.push("Expo token (Setup tab)");
+    if (mode === "local") {
+      if (platform === "android") {
+        if (!ok("android-sdk")) missing.push("Android SDK");
+        if (!ok("java")) missing.push("Java JDK");
+      } else {
+        if (!ok("xcode")) missing.push("Xcode");
+        if (!ok("cocoapods")) missing.push("CocoaPods");
+      }
+    }
+    return { platform, mode, ready: missing.length === 0, missing };
+  });
+}
+
 const EMOJI_RE = /^(\p{Extended_Pictographic}(?:️)?(?:‍\p{Extended_Pictographic})*)\s*/u;
 
 export default function ChatPanel({
@@ -26,6 +51,7 @@ export default function ChatPanel({
   const [sendError, setSendError] = useState<string | null>(null);
   const [agentFix, setAgentFix] = useState<string | null>(null);
   const [agentLabel, setAgentLabel] = useState<string | null>(null);
+  const [readiness, setReadiness] = useState<PlatformReadiness[] | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const countRef = useRef(0);
   const prefillDone = useRef(false);
@@ -83,6 +109,15 @@ export default function ChatPanel({
       })
       .catch(() => {});
   }, [projectId]);
+
+  // Build readiness for the "ready to build" card (doctor result is server-cached).
+  useEffect(() => {
+    if (!isExpo) return;
+    fetch("/api/doctor")
+      .then((r) => r.json())
+      .then((d) => setReadiness(computeReadiness(d.checks ?? [], d.buildModes ?? { android: null, ios: null })))
+      .catch(() => {});
+  }, [projectId, isExpo]);
 
   useEffect(() => {
     if (messages.length !== countRef.current) {
@@ -158,27 +193,7 @@ export default function ChatPanel({
           <div className="rounded-xl bg-red-50 px-4 py-2 text-sm text-red-800">⚠ {run.error}</div>
         )}
         {!running && isExpo && !hasSuccessfulBuild && messages.length > 0 && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-            <p className="text-sm font-semibold text-emerald-900">🎉 Your app is native and ready to build</p>
-            <p className="mt-1 text-sm text-emerald-800">
-              One choice first: builds can run in the <strong>cloud</strong> (Expo&apos;s servers, zero setup,
-              ~30 free builds/month) or <strong>locally</strong> on this machine (unlimited, needs the toolchain).
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <a
-                href="/settings"
-                className="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-sm text-emerald-900 hover:bg-emerald-100"
-              >
-                ⚙️ Choose where builds run
-              </a>
-              <button
-                onClick={onShowBuilds}
-                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
-              >
-                🚀 Start a build
-              </button>
-            </div>
-          </div>
+          <BuildReadyCard readiness={readiness} onShowBuilds={onShowBuilds} />
         )}
         <div ref={bottomRef} />
       </div>
@@ -214,6 +229,73 @@ export default function ChatPanel({
             {sending ? "…" : "Send"}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function BuildReadyCard({
+  readiness,
+  onShowBuilds,
+}: {
+  readiness: PlatformReadiness[] | null;
+  onShowBuilds: () => void;
+}) {
+  const allReady = !!readiness && readiness.every((r) => r.ready);
+  const modeLabel = (m: string | null) => (m === "cloud" ? "Cloud (Expo servers)" : m === "local" ? "Local (this machine)" : null);
+  return (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+      <p className="text-sm font-semibold text-emerald-900">🎉 Your app is native and ready to build</p>
+
+      {!readiness ? (
+        <p className="mt-1 text-sm text-emerald-800">Checking your build setup…</p>
+      ) : (
+        <div className="mt-2 space-y-1.5">
+          {readiness.map((r) => (
+            <div key={r.platform} className="flex items-start gap-2 text-sm">
+              <span className={`mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] text-white ${r.ready ? "bg-emerald-500" : "bg-amber-500"}`}>
+                {r.ready ? "✓" : "!"}
+              </span>
+              <span className={r.ready ? "text-emerald-900" : "text-amber-900"}>
+                <span className="font-medium capitalize">{r.platform}</span>
+                {r.mode ? (
+                  <> — <span className="font-medium">{modeLabel(r.mode)}</span>{r.ready ? " · all set" : ` · missing: ${r.missing.join(", ")}`}</>
+                ) : (
+                  <> — no build method selected yet</>
+                )}
+              </span>
+            </div>
+          ))}
+          {!allReady && (
+            <p className="pt-1 text-sm text-amber-800">
+              Builds can run in the <strong>cloud</strong> (Expo&apos;s servers, zero setup, ~30 free builds/month)
+              or <strong>locally</strong> on this machine (unlimited, needs the toolchain). Pick a method for each
+              platform below, then come back.
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <a
+          href="/settings"
+          className={`rounded-lg px-3 py-1.5 text-sm ${
+            allReady
+              ? "border border-emerald-300 bg-white text-emerald-900 hover:bg-emerald-100"
+              : "bg-amber-600 font-medium text-white hover:bg-amber-500"
+          }`}
+        >
+          ⚙️ Choose where builds run
+        </a>
+        <button
+          onClick={onShowBuilds}
+          disabled={!allReady}
+          title={allReady ? undefined : "Finish the build setup first"}
+          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          🚀 Start a build
+        </button>
+        {!allReady && <span className="text-xs text-amber-700">button unlocks once setup is complete</span>}
       </div>
     </div>
   );

@@ -12,7 +12,7 @@ export type DoctorCheck = {
   fixMarkdown: string | null;
 };
 
-type DoctorResponse = { checks: DoctorCheck[]; buildModes: { android: string; ios: string } };
+type DoctorResponse = { checks: DoctorCheck[]; buildModes: { android: string | null; ios: string | null } };
 
 const GROUPS: Record<string, string> = {
   core: "Basics",
@@ -27,9 +27,9 @@ export default function MachinePanel() {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
 
-  const load = useCallback(() => {
+  const load = useCallback((fresh = false) => {
     setLoading(true);
-    fetch("/api/doctor")
+    fetch(fresh ? "/api/doctor?fresh=1" : "/api/doctor")
       .then((r) => r.json())
       .then(setData)
       .finally(() => setLoading(false));
@@ -56,7 +56,7 @@ export default function MachinePanel() {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Your machine</h2>
         <button
-          onClick={load}
+          onClick={() => load(true)}
           disabled={loading}
           className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-stone-600 hover:bg-stone-100 disabled:opacity-50"
         >
@@ -86,6 +86,7 @@ export default function MachinePanel() {
                 {mode === "cloud" ? "Cloud (easy, ~30 free builds/mo)" : "Local (unlimited, needs toolchain)"}
               </button>
             ))}
+            {!data.buildModes[platform] && <span className="text-xs text-amber-600">← pick one</span>}
           </div>
         ))}
         <p className="mt-1 text-xs text-stone-400">
