@@ -34,3 +34,35 @@ body {
 .prose-instructions p {
   @apply my-1.5;
 }
+
+/* Activity feed: the step currently being worked on gets a sweeping glow. */
+@keyframes step-sweep {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.step-running {
+  background: linear-gradient(
+    100deg,
+    rgba(251, 191, 36, 0.08) 20%,
+    rgba(251, 191, 36, 0.28) 50%,
+    rgba(251, 191, 36, 0.08) 80%
+  );
+  background-size: 200% 100%;
+  animation: step-sweep 1.8s linear infinite;
+}
+@keyframes step-glow {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.step-glow {
+  animation: step-glow 1.4s ease-in-out infinite;
+}

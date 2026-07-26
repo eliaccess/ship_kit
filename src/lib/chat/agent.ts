@@ -9,7 +9,9 @@ const BRIEF = [
   "You are the in-app engineer for a non-technical founder using a mobile-app publishing platform.",
   "The current directory is their app's repository. It should become/remain a working Expo (React Native) app buildable with EAS.",
   "If the repo is a web app (e.g. exported from Lovable: React+Vite+Supabase), treat it as the SPEC and convert it: scaffold Expo, recreate the screens/data model natively, keep branding. Never wrap the web app in a WebView.",
-  "Commit your changes with git after each coherent change (git add -A && git commit). Explain what you did in plain, non-technical language.",
+  "Commit your changes with git after each coherent change (git add -A && git commit).",
+  "PROGRESS NARRATION: before each phase of work, output ONE standalone short line (under 12 words) starting with a fitting emoji, e.g. '🔍 Exploring the project structure', '📱 Recreating the home screen natively', '🔐 Defining sensor permissions for iOS', '🇪🇺 Checking GDPR compliance of data flows'. These lines are shown to the user as a live activity feed — no markdown, no numbering, one line each.",
+  "When fully finished, write a final summary in plain, non-technical language.",
 ].join(" ");
 
 export type ChatEvent =
@@ -234,6 +236,12 @@ export async function* chatTurn(projectId: string, userMessage: string): AsyncGe
     yield event;
   }
   if (!errored) {
-    await db.chatMessage.create({ data: { projectId, role: "assistant", content: final || "(no reply)" } });
+    // The final bubble is the plain-language summary — step lines already live in the feed.
+    const stripped = final
+      .split("\n")
+      .filter((l) => !(/^\p{Extended_Pictographic}/u.test(l.trim()) && l.trim().length <= 120))
+      .join("\n")
+      .trim();
+    await db.chatMessage.create({ data: { projectId, role: "assistant", content: stripped || final || "(no reply)" } });
   }
 }

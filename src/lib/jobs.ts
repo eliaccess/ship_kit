@@ -85,6 +85,13 @@ export function startWorker() {
   db.job
     .updateMany({ where: { status: "running" }, data: { status: "queued", startedAt: null } })
     .catch(() => {});
+  // Chat runs can't be resumed after a restart (the agent process died) — mark them honestly.
+  db.chatRun
+    .updateMany({
+      where: { status: "running" },
+      data: { status: "error", error: "Interrupted by a server restart — send your message again.", finishedAt: new Date() },
+    })
+    .catch(() => {});
   setInterval(() => tick().catch((e) => console.error("[worker]", e)), POLL_MS);
   console.log("[worker] job runner started");
 }

@@ -33,6 +33,7 @@ model Project {
   credentials Credential[]
   wizardSteps WizardState[]
   messages    ChatMessage[]
+  chatRuns    ChatRun[]
 }
 
 // Per-project pasted credentials (ASC .p8, Play service-account JSON, ...), encrypted at rest.
@@ -79,10 +80,25 @@ model Build {
 model ChatMessage {
   id        String   @id @default(cuid())
   projectId String
-  role      String // user | assistant | system
+  runId     String?
+  role      String // user | assistant | system | step
+  // chat = conversation bubble, step = progress line in the activity feed
+  kind      String   @default("chat")
   content   String
   createdAt DateTime @default(now())
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// One agent execution. Survives page reloads / network cuts: the run continues
+// server-side and the UI re-attaches by polling.
+model ChatRun {
+  id         String    @id @default(cuid())
+  projectId  String
+  status     String    @default("running") // running | done | error
+  error      String?
+  createdAt  DateTime  @default(now())
+  finishedAt DateTime?
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 model Job {
