@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import WizardPanel from "./WizardPanel";
 import BuildsPanel from "./BuildsPanel";
 import ChatPanel from "./ChatPanel";
+import RepoFix from "./RepoFix";
 
 export type Project = {
   id: string;
@@ -108,14 +109,24 @@ export default function ProjectView({ id }: { id: string }) {
 
       {tab === "Overview" && (
         <div className="grid gap-4 sm:grid-cols-2">
-          <Card title="Repository">
-            <StatusRow ok={project.status === "ready"} label={`Status: ${project.status}`} />
-            <StatusRow
-              ok={project.isExpo}
-              label={project.isExpo ? "Expo app detected — buildable" : "Not an Expo app yet — convert it in Chat"}
-            />
-            {project.statusMsg && <p className="mt-2 text-xs text-stone-500">{project.statusMsg}</p>}
-          </Card>
+          {project.status === "error" ? (
+            <div className="rounded-xl border border-red-200 bg-white p-4 shadow-sm sm:col-span-2">
+              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-red-700">
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">✗</span>
+                Repository — we couldn&apos;t download your code
+              </h3>
+              <RepoFix projectId={id} statusMsg={project.statusMsg} onRetried={load} />
+            </div>
+          ) : (
+            <Card title="Repository">
+              <StatusRow ok={project.status === "ready"} label={`Status: ${project.status}`} />
+              <StatusRow
+                ok={project.isExpo}
+                label={project.isExpo ? "Expo app detected — buildable" : "Not an Expo app yet — convert it in Chat"}
+              />
+              {project.statusMsg && <p className="mt-2 text-xs text-stone-500">{project.statusMsg}</p>}
+            </Card>
+          )}
           <Card title="App identity">
             <StatusRow ok={!!project.appName} label={project.appName ? `Name: ${project.appName}` : "No app name set"} />
             <StatusRow ok={!!project.bundleId} label={project.bundleId ? `Bundle ID: ${project.bundleId}` : "No bundle ID set"} />

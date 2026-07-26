@@ -2,6 +2,7 @@
 
 import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import RepoFix from "@/components/RepoFix";
 
 type Project = {
   id: string;
@@ -18,9 +19,6 @@ export default function ImportPage({ params }: { params: Promise<{ id: string }>
   const { id } = use(params);
   const [project, setProject] = useState<Project | null>(null);
   const [tick, setTick] = useState(0);
-  const [pat, setPat] = useState("");
-  const [patError, setPatError] = useState<string | null>(null);
-  const [retrying, setRetrying] = useState(false);
   const router = useRouter();
 
   const load = useCallback(
@@ -38,32 +36,9 @@ export default function ImportPage({ params }: { params: Promise<{ id: string }>
     };
   }, [load]);
 
-  async function retryWithPat() {
-    setPatError(null);
-    setRetrying(true);
-    if (pat.trim()) {
-      const res = await fetch("/api/settings", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ key: "github_pat", value: pat.trim() }),
-      });
-      if (!res.ok) {
-        setRetrying(false);
-        return setPatError("Couldn't save the token.");
-      }
-    }
-    await fetch(`/api/projects/${id}/sync`, { method: "POST" });
-    setRetrying(false);
-    setPat("");
-    load();
-  }
-
   if (!project) return <Centered><p className="text-sm text-stone-400">Loading…</p></Centered>;
 
   const working = project.status === "created" || project.status === "cloning";
-  const authIssue =
-    project.status === "error" &&
-    /auth|denied|could not read|invalid username|repository not found|403|404|128/i.test(project.statusMsg ?? "");
 
   return (
     <Centered>
@@ -87,50 +62,7 @@ export default function ImportPage({ params }: { params: Promise<{ id: string }>
               <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">✗</span>
               <span className="font-medium text-red-800">We couldn&apos;t download your code.</span>
             </div>
-            {authIssue ? (
-              <div className="space-y-3">
-                <p className="text-sm text-stone-600">
-                  This usually means the repository is <strong>private</strong>. Paste a GitHub access token
-                  so ShipKit can read it (nothing else):
-                </p>
-                <ol className="list-decimal space-y-1 pl-5 text-sm text-stone-600">
-                  <li>Open <a className="text-blue-700 underline" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">github.com → Settings → Fine-grained tokens</a></li>
-                  <li>Repository access: <em>Only select repositories</em> → pick this repo</li>
-                  <li>Permissions → Contents: <em>Read-only</em> → Generate, then copy it</li>
-                </ol>
-                <div className="flex gap-2">
-                  <input
-                    type="password"
-                    value={pat}
-                    onChange={(e) => setPat(e.target.value)}
-                    placeholder="github_pat_…"
-                    className="flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
-                  />
-                  <button
-                    onClick={retryWithPat}
-                    disabled={retrying}
-                    className="rounded-lg bg-stone-900 px-4 py-2 text-sm text-white hover:bg-stone-700 disabled:opacity-50"
-                  >
-                    {retrying ? "Retrying…" : "Save & retry"}
-                  </button>
-                </div>
-                {patError && <p className="text-sm text-red-600">{patError}</p>}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <pre className="max-h-40 overflow-auto rounded-lg bg-stone-50 p-3 text-xs text-stone-600">{project.statusMsg}</pre>
-                <p className="text-sm text-stone-600">
-                  Double-check the repository URL exists and is reachable, then retry.
-                </p>
-                <button
-                  onClick={retryWithPat}
-                  disabled={retrying}
-                  className="rounded-lg bg-stone-900 px-4 py-2 text-sm text-white hover:bg-stone-700 disabled:opacity-50"
-                >
-                  {retrying ? "Retrying…" : "Retry"}
-                </button>
-              </div>
-            )}
+            <RepoFix projectId={id} statusMsg={project.statusMsg} onRetried={load} />
           </div>
         )}
 
