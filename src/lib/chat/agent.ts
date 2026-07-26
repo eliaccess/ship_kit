@@ -211,7 +211,14 @@ export async function* chatTurn(projectId: string, userMessage: string): AsyncGe
     yield { type: "error", message: "Repository not synced yet. Link the repo first (Overview tab)." };
     return;
   }
-  const agentId = (await getSelectedAgent()) ?? "claude";
+  const agentId = await getSelectedAgent();
+  if (!agentId) {
+    yield {
+      type: "error",
+      message: "No coding agent connected yet. Open the welcome screen (/welcome) to pick one (Claude Code, Codex or Gemini).",
+    };
+    return;
+  }
   const agent = AGENTS.find((a) => a.id === agentId)!;
 
   await db.chatMessage.create({ data: { projectId, role: "user", content: userMessage } });

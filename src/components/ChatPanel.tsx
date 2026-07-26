@@ -20,7 +20,12 @@ export default function ChatPanel({ projectId }: { projectId: string }) {
     fetch("/api/agents")
       .then((r) => r.json())
       .then((d) => {
-        const active = d.agents?.find((a: { id: string }) => a.id === (d.selected ?? "claude"));
+        if (!d.selected) {
+          setAgentLabel(null);
+          setAgentFix("No coding agent connected yet. Pick one on the [welcome screen](/welcome) — Claude Code, OpenAI Codex or Gemini CLI.");
+          return;
+        }
+        const active = d.agents?.find((a: { id: string }) => a.id === d.selected);
         if (!active) return;
         setAgentLabel(active.label);
         setAgentFix(
@@ -90,6 +95,16 @@ export default function ChatPanel({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex h-[70vh] flex-col rounded-xl border border-stone-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-stone-100 px-4 py-2">
+        <span className="text-xs text-stone-400">
+          {agentLabel ? (
+            <>Powered by <span className="font-medium text-stone-600">{agentLabel}</span> — your account, running on your machine</>
+          ) : (
+            "No coding agent connected"
+          )}
+        </span>
+        <a href="/welcome" className="text-xs text-blue-700 underline">change agent</a>
+      </div>
       <div className="flex-1 space-y-4 overflow-y-auto p-4">
         {agentFix && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
