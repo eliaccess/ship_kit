@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "description": "From GitHub repo to installable Android/iOS builds — guided, for non-technical founders.",
+  "license": "Apache-2.0",
+  "author": "Elias Limouni",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

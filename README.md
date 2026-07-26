@@ -150,4 +150,6 @@ credentials, chat history) and `storage/` (cloned repos, build artifacts, logs).
 - [ ] Fully offline build mode (no Expo account: `expo prebuild` + Gradle/Xcode, keystore in the local vault) — opt-in, for advanced users
 - [ ] Packaged desktop app (Tauri/Electron) so non-technical users skip the Node/Git install
 
-MIT licensed — see [LICENSE](./LICENSE).
+Licensed under the [Apache License 2.0](./LICENSE) — © 2026 Elias Limouni. If you reuse or
+redistribute this code, keep the [NOTICE](./NOTICE) file with your distribution (that's the
+attribution requirement of the license).
