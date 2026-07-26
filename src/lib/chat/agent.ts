@@ -100,7 +100,7 @@ function runClaude(projectId: string, dir: string, message: string): Spawned {
     // Headless runs can't ask for approval — allowlist the safe commands the
     // brief requires (committing work, installing deps, expo tooling).
     "--allowedTools",
-    "Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(npm install:*),Bash(npm run:*),Bash(npx expo:*),Bash(mkdir:*),Bash(ls:*),Bash(gcloud:*)",
+    "Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(npm install:*),Bash(npm run:*),Bash(npx expo:*),Bash(mkdir:*),Bash(ls:*),Bash(gcloud:*),Bash(curl:*)",
     "--append-system-prompt", BRIEF,
   ];
   const prior = readSession(projectId, "claude");
