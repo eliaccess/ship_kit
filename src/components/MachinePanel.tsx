@@ -20,6 +20,7 @@ const GROUPS: Record<string, string> = {
   expo: "Expo (build system)",
   "android-local": "Local Android builds",
   "ios-local": "Local iOS builds",
+  backend: "Backend deployment (custom APIs only, optional)",
 };
 
 export default function MachinePanel() {

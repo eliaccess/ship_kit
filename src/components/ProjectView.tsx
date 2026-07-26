@@ -14,6 +14,7 @@ export type Project = {
   status: string;
   statusMsg: string | null;
   isExpo: boolean;
+  backend: string | null;
   appName: string | null;
   bundleId: string | null;
   builds: Build[];
@@ -124,6 +125,16 @@ export default function ProjectView({ id }: { id: string }) {
                 ok={project.isExpo}
                 label={project.isExpo ? "Expo app detected — buildable" : "Not an Expo app yet — convert it in Chat"}
               />
+              {project.backend && project.backend !== "none" && (
+                <StatusRow
+                  ok={project.backend === "supabase"}
+                  label={
+                    project.backend === "supabase"
+                      ? "Backend: Supabase — already hosted, nothing to deploy"
+                      : "Backend: custom API — deployable via Chat (see Setup → Backend hosting)"
+                  }
+                />
+              )}
               {project.statusMsg && <p className="mt-2 text-xs text-stone-500">{project.statusMsg}</p>}
             </Card>
           )}

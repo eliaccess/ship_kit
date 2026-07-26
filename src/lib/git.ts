@@ -77,6 +77,19 @@ export function detectExpo(dir: string): boolean {
   return detectKind(dir) === "expo";
 }
 
+/** What powers the app's data: hosted Supabase, a custom API server, or nothing detected. */
+export function detectBackend(dir: string): "supabase" | "custom" | "none" {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8"));
+    const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+    if (deps["@supabase/supabase-js"]) return "supabase";
+    if (deps["express"] || deps["@nestjs/core"] || deps["fastify"] || deps["hono"] || deps["koa"]) return "custom";
+    return "none";
+  } catch {
+    return "none";
+  }
+}
+
 /** Classifies the repo: native Expo app, Lovable export, generic web app, or unknown. */
 export function detectKind(dir: string): "expo" | "lovable" | "web" | "unknown" {
   try {

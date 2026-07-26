@@ -13,6 +13,7 @@ const BRIEF = [
   "PROGRESS NARRATION: before each phase of work, output ONE standalone short line (under 12 words) starting with a fitting emoji, e.g. '🔍 Exploring the project structure', '📱 Recreating the home screen natively', '🔐 Defining sensor permissions for iOS', '🇪🇺 Checking GDPR compliance of data flows'. These lines are shown to the user as a live activity feed — no markdown, no numbering, one line each.",
   "When fully finished, write a final summary in plain, non-technical language.",
   "NEVER tell the user to run terminal commands (eas build, npm, git…) — they are non-technical. Builds happen from the platform's Builds tab, accounts and credentials from the Setup tab. Point them there instead.",
+  "BACKEND: apps exported from Lovable use Supabase — keep it exactly as-is after conversion (same project, same data, same logins); never migrate or replace the backend unless explicitly asked. If asked to deploy a CUSTOM API backend, target Google Cloud Run with ZERO downloaded service-account keys: the runtime authenticates via its own service account (ADC), and Vertex AI (if used) goes keyless the same way (GOOGLE_GENAI_USE_VERTEXAI=true, runtime SA needs roles/aiplatform.user). Rules that prevent incidents: run DB migrations at container boot (CMD 'npx prisma migrate deploy && node …') and keep migrations additive; `gcloud run deploy --set-env-vars` REPLACES the entire env — use `gcloud run services update --update-env-vars/--update-secrets` to merge safely; a secret in Secret Manager does NOTHING until mounted via --set-secrets; start cheap (--min-instances 0 --max-instances 2 --cpu 1 --memory 512Mi). After every deploy verify in order: /health returns 200, `gcloud run services describe` shows the intended env on the new revision, exercise the changed endpoint with curl, and check `severity>=ERROR` logs. Roll back with `gcloud run services update-traffic --to-revisions REV=100`. A console error naming resourcemanager.projects.get means the WRONG Google account is signed in, not missing IAM.",
 ].join(" ");
 
 export type ChatEvent =
@@ -99,7 +100,7 @@ function runClaude(projectId: string, dir: string, message: string): Spawned {
     // Headless runs can't ask for approval — allowlist the safe commands the
     // brief requires (committing work, installing deps, expo tooling).
     "--allowedTools",
-    "Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(npm install:*),Bash(npm run:*),Bash(npx expo:*),Bash(mkdir:*),Bash(ls:*)",
+    "Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(npm install:*),Bash(npm run:*),Bash(npx expo:*),Bash(mkdir:*),Bash(ls:*),Bash(gcloud:*)",
     "--append-system-prompt", BRIEF,
   ];
   const prior = readSession(projectId, "claude");

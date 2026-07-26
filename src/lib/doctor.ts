@@ -7,7 +7,7 @@ import { getSetting, SETTING_KEYS } from "./settings";
 export type DoctorCheck = {
   id: string;
   label: string;
-  group: "core" | "agent" | "expo" | "android-local" | "ios-local";
+  group: "core" | "agent" | "expo" | "android-local" | "ios-local" | "backend";
   ok: boolean;
   detail: string;
   fixMarkdown: string | null;
@@ -41,7 +41,7 @@ export async function runDoctor(): Promise<DoctorCheck[]> {
   const checks: DoctorCheck[] = [];
 
   // Probe everything concurrently — sequential probes made the Settings page feel slow.
-  const [git, claude, expoToken, javaA, javaB, xcode, pods] = await Promise.all([
+  const [git, claude, expoToken, javaA, javaB, xcode, pods, gcloud] = await Promise.all([
     cmdVersion("git", ["--version"]),
     cmdVersion("claude", ["--version"]),
     getSetting(SETTING_KEYS.EXPO_TOKEN),
@@ -49,6 +49,7 @@ export async function runDoctor(): Promise<DoctorCheck[]> {
     cmdVersion("/opt/homebrew/opt/openjdk/bin/java", ["--version"]),
     process.platform === "darwin" ? cmdVersion("xcodebuild", ["-version"]) : Promise.resolve(null),
     process.platform === "darwin" ? cmdVersion("pod", ["--version"]) : Promise.resolve(null),
+    cmdVersion("gcloud", ["--version"]),
   ]);
   const java = javaA ?? javaB;
 
@@ -168,6 +169,23 @@ export async function runDoctor(): Promise<DoctorCheck[]> {
       fixMarkdown: "Local iOS builds need a Mac. On this machine, keep iOS builds in **cloud** mode (EAS builds iOS remotely — no Mac needed).",
     });
   }
+
+  // ── Backend deployment (only for apps with a custom API server) ──────
+  checks.push({
+    id: "gcloud",
+    label: "Google Cloud CLI (deploying custom backends)",
+    group: "backend",
+    ok: !!gcloud,
+    detail: gcloud ?? "not found",
+    fixMarkdown: gcloud
+      ? null
+      : [
+          "Only needed if your app has its **own API server** to host (Lovable apps use Supabase — already hosted, nothing to deploy):",
+          "1. Install the Google Cloud CLI: on macOS `brew install --cask google-cloud-sdk`, otherwise https://cloud.google.com/sdk/docs/install",
+          "2. Run `gcloud auth login` and `gcloud auth application-default login` in a terminal.",
+          "3. The chat agent handles the deployment itself (Cloud Run, no downloaded keys).",
+        ].join("\n"),
+  });
 
   return checks;
 }

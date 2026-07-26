@@ -25,6 +25,8 @@ model Project {
   isExpo    Boolean  @default(false)
   // expo | lovable | web | unknown
   kind      String?
+  // supabase | custom | none — what powers the app's data
+  backend   String?
   appName   String?
   bundleId  String?
   createdAt DateTime @default(now())

@@ -151,6 +151,26 @@ export const WIZARD_STEPS: WizardStepDef[] = [
         : "Client IDs end with .apps.googleusercontent.com",
   }),
   step("apple-signin", "5. Optional features", { optional: true, requires: ["apple-developer-account"] }),
+
+  // ── Phase 6: Backend hosting ────────────────────────────────────────────
+  step("backend-hosting", "6. Backend hosting", { optional: true }),
+  step("gcp-deploy", "6. Backend hosting", {
+    optional: true,
+    requires: ["backend-hosting"],
+    inputs: [
+      {
+        name: "gcp_project_id",
+        label: "Google Cloud project ID (optional — the chat agent uses it when deploying)",
+        type: "text",
+        secret: false,
+        placeholder: "e.g. my-app-prod-4821",
+      },
+    ],
+    validate: (v) =>
+      !v.gcp_project_id || /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(v.gcp_project_id)
+        ? null
+        : "Project IDs are 6–30 characters: lowercase letters, digits and hyphens, starting with a letter.",
+  }),
 ];
 
 export function getStep(id: string): WizardStepDef | undefined {

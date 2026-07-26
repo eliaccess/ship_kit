@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { chatTurn } from "./agent";
-import { detectKind } from "../git";
+import { detectKind, detectBackend } from "../git";
 import { workspaceDir } from "../paths";
 
 /** A short line starting with an emoji = one activity-feed step. */
@@ -90,12 +90,14 @@ async function executeRun(runId: string, projectId: string, message: string): Pr
   // The agent may have transformed the project (web → Expo): re-detect so the
   // Overview and Builds tabs reflect reality without waiting for a re-sync.
   try {
-    const kind = detectKind(workspaceDir(projectId));
+    const dir = workspaceDir(projectId);
+    const kind = detectKind(dir);
     await db.project.update({
       where: { id: projectId },
       data: {
         kind,
         isExpo: kind === "expo",
+        backend: detectBackend(dir),
         ...(kind === "expo" ? { statusMsg: "Expo app detected — ready to build." } : {}),
       },
     });

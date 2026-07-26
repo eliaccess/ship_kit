@@ -37,6 +37,9 @@ ShipKit puts an abstraction layer over all of it:
 - **🧭 The accounts maze, guided** — Apple's 24–48h activation, Google Play's 14-day closed-test
   rule, App Store Connect API keys, service accounts: step-by-step instructions written for
   non-technical people, with pasted values validated on the spot.
+- **🗄 Backend awareness** — Lovable apps keep their existing Supabase backend untouched (same
+  data, same logins — nothing to deploy); apps with a custom API server get a guided path where
+  the agent deploys it to Google Cloud Run under your account, keyless, with health checks.
 
 ## A tour in screenshots
 
@@ -147,6 +150,7 @@ credentials, chat history) and `storage/` (cloned repos, build artifacts, logs).
 - [ ] One-click `eas submit` to TestFlight / Play internal testing
 - [ ] Live verification of pasted credentials (ping ASC / Play APIs)
 - [ ] Store-listing generator (screenshots, privacy questionnaire answers)
+- [ ] Transactional email & legal-pages phases (the remaining launch-playbook steps)
 - [ ] Fully offline build mode (no Expo account: `expo prebuild` + Gradle/Xcode, keystore in the local vault) — opt-in, for advanced users
 - [ ] Packaged desktop app (Tauri/Electron) so non-technical users skip the Node/Git install
 

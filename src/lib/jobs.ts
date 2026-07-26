@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { cloneOrPull, detectKind } from "./git";
+import { cloneOrPull, detectKind, detectBackend } from "./git";
 import { runBuild } from "./builds/eas";
 
 const POLL_MS = 3000;
@@ -31,7 +31,7 @@ async function handle(type: string, payload: Record<string, string>): Promise<vo
       };
       await db.project.update({
         where: { id: project.id },
-        data: { status: "ready", isExpo: kind === "expo", kind, statusMsg: messages[kind] },
+        data: { status: "ready", isExpo: kind === "expo", kind, backend: detectBackend(dir), statusMsg: messages[kind] },
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
