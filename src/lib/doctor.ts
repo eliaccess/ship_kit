@@ -121,13 +121,21 @@ export async function runDoctor(): Promise<DoctorCheck[]> {
         ].join("\n"),
   });
 
+  // Android's build system (Gradle) is certified for JDK 17–21; a newer JDK
+  // often breaks builds with "Unsupported class file major version".
+  const javaMajor = java ? parseInt(java.match(/(?:openjdk|java)\D*(\d+)/i)?.[1] ?? "0", 10) : 0;
+  const javaTooNew = javaMajor > 21;
   checks.push({
     id: "java",
     label: "Java JDK (local Android builds)",
     group: "android-local",
     ok: !!java,
-    detail: java ?? "not found",
-    fixMarkdown: java ? null : "Install a JDK: on macOS `brew install openjdk`, on Linux `sudo apt install openjdk-17-jdk`. Only needed for local Android builds.",
+    detail: java ? `${java}${javaTooNew ? " ⚠ newer than Android supports" : ""}` : "not found",
+    fixMarkdown: !java
+      ? "Install a JDK: on macOS `brew install openjdk@17`, on Linux `sudo apt install openjdk-17-jdk`. Only needed for local Android builds."
+      : javaTooNew
+        ? `You have JDK ${javaMajor}, but Android's build system works best with **JDK 17–21**. If a local Android build fails with a Java-version error ("Unsupported class file major version"), install a compatible one: \`brew install openjdk@17\`, then set \`JAVA_HOME\` to it (Homebrew prints the exact path after installing).`
+        : null,
   });
 
   // ── iOS local toolchain (macOS only) ──────────────────────────────────
