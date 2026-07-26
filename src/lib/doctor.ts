@@ -13,7 +13,7 @@ export type DoctorCheck = {
   fixMarkdown: string | null;
 };
 
-async function cmdVersion(cmd: string, args: string[], timeoutMs = 15000): Promise<string | null> {
+async function cmdOutput(cmd: string, args: string[], timeoutMs = 15000): Promise<string | null> {
   try {
     const res = await Promise.race([
       run(cmd, args),
@@ -21,10 +21,15 @@ async function cmdVersion(cmd: string, args: string[], timeoutMs = 15000): Promi
         setTimeout(() => resolve({ code: 124, output: "timeout" }), timeoutMs)
       ),
     ]);
-    return res.code === 0 ? res.output.trim().split("\n")[0] : null;
+    return res.code === 0 ? res.output.trim() : null;
   } catch {
     return null;
   }
+}
+
+async function cmdVersion(cmd: string, args: string[], timeoutMs = 15000): Promise<string | null> {
+  const out = await cmdOutput(cmd, args, timeoutMs);
+  return out ? out.split("\n")[0] : null;
 }
 
 function findAndroidSdk(): string | null {
@@ -41,7 +46,7 @@ export async function runDoctor(): Promise<DoctorCheck[]> {
   const checks: DoctorCheck[] = [];
 
   // Probe everything concurrently — sequential probes made the Settings page feel slow.
-  const [git, claude, expoToken, javaA, javaB, xcode, pods, gcloud] = await Promise.all([
+  const [git, claude, expoToken, javaA, javaB, xcode, pods, gcloud, gcloudAccount, gcloudProject] = await Promise.all([
     cmdVersion("git", ["--version"]),
     cmdVersion("claude", ["--version"]),
     getSetting(SETTING_KEYS.EXPO_TOKEN),
@@ -50,6 +55,8 @@ export async function runDoctor(): Promise<DoctorCheck[]> {
     process.platform === "darwin" ? cmdVersion("xcodebuild", ["-version"]) : Promise.resolve(null),
     process.platform === "darwin" ? cmdVersion("pod", ["--version"]) : Promise.resolve(null),
     cmdVersion("gcloud", ["--version"]),
+    cmdOutput("gcloud", ["config", "get-value", "account"]),
+    cmdOutput("gcloud", ["config", "get-value", "project"]),
   ]);
   const java = javaA ?? javaB;
 
@@ -171,20 +178,46 @@ export async function runDoctor(): Promise<DoctorCheck[]> {
   }
 
   // ── Backend deployment (only for apps with a custom API server) ──────
+  // "Installed" isn't enough — the deploy flow needs the CLI CONFIGURED:
+  // a logged-in account, Application Default Credentials, and ideally a project.
+  // `gcloud config get-value` prints "Your active configuration is: […]" on stderr —
+  // keep only the actual value line.
+  const cfgValue = (raw: string | null) => {
+    const v = raw
+      ?.split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l && !/active configuration/i.test(l))
+      .pop();
+    return v && !/unset/i.test(v) ? v : null;
+  };
+  const account = cfgValue(gcloudAccount);
+  const gcloudProj = cfgValue(gcloudProject);
+  const adcPath = path.join(os.homedir(), ".config", "gcloud", "application_default_credentials.json");
+  const adc = fs.existsSync(adcPath);
+  const gcloudConfigured = !!gcloud && !!account && adc;
   checks.push({
     id: "gcloud",
     label: "Google Cloud CLI (deploying custom backends)",
     group: "backend",
-    ok: !!gcloud,
-    detail: gcloud ?? "not found",
-    fixMarkdown: gcloud
+    ok: gcloudConfigured,
+    detail: !gcloud
+      ? "not found"
+      : `${gcloud.replace("Google Cloud SDK", "SDK")} · account: ${account ?? "not logged in"} · app credentials: ${adc ? "✓" : "✗"}${gcloudProj ? ` · project: ${gcloudProj}` : ""}`,
+    fixMarkdown: gcloudConfigured
       ? null
-      : [
-          "Only needed if your app has its **own API server** to host (Lovable apps use Supabase — already hosted, nothing to deploy):",
-          "1. Install the Google Cloud CLI: on macOS `brew install --cask google-cloud-sdk`, otherwise https://cloud.google.com/sdk/docs/install",
-          "2. Run `gcloud auth login` and `gcloud auth application-default login` in a terminal.",
-          "3. The chat agent handles the deployment itself (Cloud Run, no downloaded keys).",
-        ].join("\n"),
+      : !gcloud
+        ? [
+            "Only needed if your app has its **own API server** to host (Lovable apps use Supabase — already hosted, nothing to deploy):",
+            "1. Install the Google Cloud CLI: on macOS `brew install --cask google-cloud-sdk`, otherwise https://cloud.google.com/sdk/docs/install",
+            "2. Run `gcloud auth login` and `gcloud auth application-default login` in a terminal (each opens a browser).",
+            "3. The chat agent handles the deployment itself (Cloud Run, no downloaded keys).",
+          ].join("\n")
+        : [
+            "The CLI is installed but **not fully configured** — the deploy agent would stall without this:",
+            ...(!account ? ["- Run `gcloud auth login` in a terminal (opens a browser to sign in)."] : []),
+            ...(!adc ? ["- Run `gcloud auth application-default login` (a second, separate login that programs use)."] : []),
+            ...(!gcloudProj ? ["- Optional: set a default project with `gcloud config set project YOUR_PROJECT_ID`."] : []),
+          ].join("\n"),
   });
 
   return checks;

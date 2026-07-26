@@ -185,6 +185,8 @@ export default function ChatPanel({
         {messages.map((m, i) =>
           m.kind === "step" ? (
             <StepRow key={m.id} content={m.content} active={i === lastActiveStepIdx} />
+          ) : m.kind === "action" ? (
+            <ActionRow key={m.id} content={m.content} />
           ) : (
             <Bubble key={m.id} role={m.role} content={m.content} />
           )
@@ -298,6 +300,20 @@ function BuildReadyCard({
           🚀 Start a build
         </button>
         {!allReady && <span className="text-xs text-amber-700">button unlocks once setup is complete</span>}
+      </div>
+    </div>
+  );
+}
+
+function ActionRow({ content }: { content: string }) {
+  const label = content.replace(/^🙋\s*/, "").replace(/^action needed\s*:\s*/i, "");
+  return (
+    <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+      <p className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-700">
+        🙋 Action needed — only you can do this
+      </p>
+      <div className="prose-instructions text-amber-900">
+        <ReactMarkdown>{label}</ReactMarkdown>
       </div>
     </div>
   );

@@ -8,14 +8,19 @@ function isStepLine(line: string): boolean {
   return /^\p{Extended_Pictographic}/u.test(line) && line.length <= 120;
 }
 
-/** Splits agent text into segments: each step line alone, consecutive prose lines together. */
+/** A '🙋 ACTION NEEDED' line = something only the human can do (billing, ToS, accounts…). */
+function isActionLine(line: string): boolean {
+  return line.startsWith("🙋") || /^action needed\s*:/i.test(line);
+}
+
+/** Splits agent text into segments: step/action lines alone, consecutive prose lines together. */
 function splitSegments(text: string): string[] {
   const segments: string[] = [];
   let prose: string[] = [];
   for (const raw of text.split("\n")) {
     const line = raw.trim();
     if (!line) continue;
-    if (isStepLine(line)) {
+    if (isStepLine(line) || isActionLine(line)) {
       if (prose.length) {
         segments.push(prose.join("\n"));
         prose = [];
@@ -55,8 +60,9 @@ async function executeRun(runId: string, projectId: string, message: string): Pr
 
   const flush = async () => {
     if (!pending) return;
+    const kind = isActionLine(pending) ? "action" : "step";
     await db.chatMessage.create({
-      data: { projectId, runId, role: "step", kind: "step", content: pending.slice(0, 500) },
+      data: { projectId, runId, role: kind, kind, content: pending.slice(0, 800) },
     });
     pending = null;
   };
