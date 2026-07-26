@@ -7,7 +7,7 @@ import { workspaceDir, ensureDir } from "./paths";
 export function run(
   cmd: string,
   args: string[],
-  opts: { cwd?: string; env?: Record<string, string>; onOutput?: (chunk: string) => void } = {}
+  opts: { cwd?: string; env?: Record<string, string>; onOutput?: (chunk: string) => void; timeoutMs?: number } = {}
 ): Promise<{ code: number; output: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, {
@@ -16,6 +16,13 @@ export function run(
       stdio: ["ignore", "pipe", "pipe"],
     });
     let output = "";
+    let timedOut = false;
+    const timer = opts.timeoutMs
+      ? setTimeout(() => {
+          timedOut = true;
+          child.kill("SIGKILL");
+        }, opts.timeoutMs)
+      : null;
     const collect = (data: Buffer) => {
       const s = data.toString();
       output += s;
@@ -23,8 +30,15 @@ export function run(
     };
     child.stdout.on("data", collect);
     child.stderr.on("data", collect);
-    child.on("error", reject);
-    child.on("close", (code) => resolve({ code: code ?? 1, output }));
+    child.on("error", (err) => {
+      if (timer) clearTimeout(timer);
+      reject(err);
+    });
+    child.on("close", (code) => {
+      if (timer) clearTimeout(timer);
+      if (timedOut) output += `\n[timed out after ${Math.round((opts.timeoutMs ?? 0) / 1000)}s]`;
+      resolve({ code: timedOut ? 124 : (code ?? 1), output });
+    });
   });
 }
 
@@ -42,14 +56,18 @@ export async function cloneOrPull(projectId: string, repoUrl: string): Promise<s
   const dir = workspaceDir(projectId);
   const url = await authedUrl(repoUrl);
   // Never log `url` — it may embed the PAT.
-  // LC_ALL=C keeps git messages in English so error classification works.
-  const env = { LC_ALL: "C", LANG: "C" };
+  // LC_ALL=C → English messages for error classification.
+  // GIT_TERMINAL_PROMPT=0 + empty askpass + disabled credential helper → git FAILS FAST
+  // on missing/wrong credentials instead of hanging on a prompt it can never answer.
+  const env = { LC_ALL: "C", LANG: "C", GIT_TERMINAL_PROMPT: "0", GIT_ASKPASS: "/bin/echo" };
+  const gitBase = ["-c", "credential.helper="];
+  const timeoutMs = 300_000;
   if (fs.existsSync(path.join(dir, ".git"))) {
-    const res = await run("git", ["pull", "--ff-only"], { cwd: dir, env });
+    const res = await run("git", [...gitBase, "pull", "--ff-only"], { cwd: dir, env, timeoutMs });
     if (res.code !== 0) throw new Error(`git pull failed:\n${res.output}`);
   } else {
     ensureDir(path.dirname(dir));
-    const res = await run("git", ["clone", "--depth", "50", url, dir], { env });
+    const res = await run("git", [...gitBase, "clone", "--depth", "50", url, dir], { env, timeoutMs });
     if (res.code !== 0) throw new Error(`git clone failed:\n${res.output.replaceAll(url, repoUrl)}`);
   }
   return dir;

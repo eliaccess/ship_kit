@@ -13,12 +13,10 @@ type Project = {
   isExpo: boolean;
 };
 
-const CLONE_STEPS = ["Contacting GitHub", "Downloading your code", "Analyzing the project"];
 
 export default function ImportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [project, setProject] = useState<Project | null>(null);
-  const [tick, setTick] = useState(0);
   const router = useRouter();
 
   const load = useCallback(
@@ -28,12 +26,8 @@ export default function ImportPage({ params }: { params: Promise<{ id: string }>
 
   useEffect(() => {
     load();
-    const poll = setInterval(load, 2500);
-    const anim = setInterval(() => setTick((t) => t + 1), 1800);
-    return () => {
-      clearInterval(poll);
-      clearInterval(anim);
-    };
+    const poll = setInterval(load, 2000);
+    return () => clearInterval(poll);
   }, [load]);
 
   if (!project) return <Centered><p className="text-sm text-stone-400">Loading…</p></Centered>;
@@ -47,10 +41,10 @@ export default function ImportPage({ params }: { params: Promise<{ id: string }>
 
         {working && (
           <div className="mt-6">
-            {/* One honest spinner — steps only get a ✓ once the import has REALLY succeeded. */}
+            {/* The label is the REAL backend stage (statusMsg) — never ahead of what's actually happening. */}
             <div className="flex items-center gap-3 text-sm text-stone-700">
               <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-stone-300 border-t-stone-900" />
-              <span>{CLONE_STEPS[Math.min(tick, CLONE_STEPS.length - 1)]}…</span>
+              <span>{project.statusMsg || "Contacting GitHub…"}</span>
             </div>
             <p className="mt-3 text-xs text-stone-400">This usually takes a few seconds. We&apos;ll tell you right away if anything needs your attention.</p>
           </div>

@@ -15,9 +15,13 @@ export async function enqueue(type: "clone" | "build", payload: object): Promise
 async function handle(type: string, payload: Record<string, string>): Promise<void> {
   if (type === "clone") {
     const project = await db.project.findUniqueOrThrow({ where: { id: payload.projectId } });
-    await db.project.update({ where: { id: project.id }, data: { status: "cloning", statusMsg: null } });
+    await db.project.update({
+      where: { id: project.id },
+      data: { status: "cloning", statusMsg: "Downloading your code…" },
+    });
     try {
       const dir = await cloneOrPull(project.id, project.repoUrl);
+      await db.project.update({ where: { id: project.id }, data: { statusMsg: "Analyzing the project…" } });
       const kind = detectKind(dir);
       const messages: Record<string, string> = {
         expo: "Expo app detected — ready to build.",
