@@ -71,32 +71,22 @@ export default function ImportPage({ params }: { params: Promise<{ id: string }>
         <h1 className="text-lg font-semibold">Importing “{project.name}”</h1>
 
         {working && (
-          <div className="mt-6 space-y-3">
-            {CLONE_STEPS.map((step, i) => {
-              const active = Math.min(tick, CLONE_STEPS.length - 1) === i;
-              const done = i < Math.min(tick, CLONE_STEPS.length - 1);
-              return (
-                <div key={step} className="flex items-center gap-3 text-sm">
-                  <span
-                    className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-xs ${
-                      done ? "bg-emerald-500 text-white" : active ? "animate-pulse bg-stone-900 text-white" : "bg-stone-100 text-stone-400"
-                    }`}
-                  >
-                    {done ? "✓" : i + 1}
-                  </span>
-                  <span className={done || active ? "text-stone-800" : "text-stone-400"}>{step}…</span>
-                </div>
-              );
-            })}
-            <p className="pt-2 text-xs text-stone-400">This usually takes a few seconds.</p>
+          <div className="mt-6">
+            {/* One honest spinner — steps only get a ✓ once the import has REALLY succeeded. */}
+            <div className="flex items-center gap-3 text-sm text-stone-700">
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-stone-300 border-t-stone-900" />
+              <span>{CLONE_STEPS[Math.min(tick, CLONE_STEPS.length - 1)]}…</span>
+            </div>
+            <p className="mt-3 text-xs text-stone-400">This usually takes a few seconds. We&apos;ll tell you right away if anything needs your attention.</p>
           </div>
         )}
 
         {project.status === "error" && (
           <div className="mt-6 space-y-4">
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
-              We couldn&apos;t download your code.
-            </p>
+            <div className="flex items-center gap-3 text-sm">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">✗</span>
+              <span className="font-medium text-red-800">We couldn&apos;t download your code.</span>
+            </div>
             {authIssue ? (
               <div className="space-y-3">
                 <p className="text-sm text-stone-600">
