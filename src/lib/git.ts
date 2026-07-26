@@ -42,23 +42,33 @@ export async function cloneOrPull(projectId: string, repoUrl: string): Promise<s
   const dir = workspaceDir(projectId);
   const url = await authedUrl(repoUrl);
   // Never log `url` — it may embed the PAT.
+  // LC_ALL=C keeps git messages in English so error classification works.
+  const env = { LC_ALL: "C", LANG: "C" };
   if (fs.existsSync(path.join(dir, ".git"))) {
-    const res = await run("git", ["pull", "--ff-only"], { cwd: dir });
+    const res = await run("git", ["pull", "--ff-only"], { cwd: dir, env });
     if (res.code !== 0) throw new Error(`git pull failed:\n${res.output}`);
   } else {
     ensureDir(path.dirname(dir));
-    const res = await run("git", ["clone", "--depth", "50", url, dir]);
+    const res = await run("git", ["clone", "--depth", "50", url, dir], { env });
     if (res.code !== 0) throw new Error(`git clone failed:\n${res.output.replaceAll(url, repoUrl)}`);
   }
   return dir;
 }
 
 export function detectExpo(dir: string): boolean {
+  return detectKind(dir) === "expo";
+}
+
+/** Classifies the repo: native Expo app, Lovable export, generic web app, or unknown. */
+export function detectKind(dir: string): "expo" | "lovable" | "web" | "unknown" {
   try {
     const pkg = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8"));
     const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-    return Boolean(deps["expo"]);
+    if (deps["expo"]) return "expo";
+    if (deps["lovable-tagger"]) return "lovable";
+    if (deps["react"] || deps["vite"] || deps["next"] || deps["vue"] || deps["svelte"]) return "web";
+    return "unknown";
   } catch {
-    return false;
+    return "unknown";
   }
 }

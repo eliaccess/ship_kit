@@ -31,10 +31,26 @@ export default function Dashboard() {
 
   const load = () => fetch("/api/projects").then((r) => r.json()).then(setProjects);
   useEffect(() => {
+    // First run: send the user to connect a coding agent.
+    fetch("/api/agents")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.selected) router.replace("/welcome");
+      })
+      .catch(() => {});
     load();
     const t = setInterval(load, 5000);
     return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function removeProject(e: React.MouseEvent, p: Project) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm(`Delete "${p.name}"? This removes its local workspace, builds and chat history.`)) return;
+    await fetch(`/api/projects/${p.id}`, { method: "DELETE" });
+    load();
+  }
 
   async function createProject(e: React.FormEvent) {
     e.preventDefault();
@@ -48,7 +64,7 @@ export default function Dashboard() {
     setBusy(false);
     const data = await res.json();
     if (!res.ok) return setError(data.error ?? "Failed");
-    router.push(`/projects/${data.id}`);
+    router.push(`/projects/${data.id}/import`);
   }
 
   return (
@@ -97,12 +113,21 @@ export default function Dashboard() {
               <li key={p.id}>
                 <Link
                   href={`/projects/${p.id}`}
-                  className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-stone-400"
+                  className="group block rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-stone-400"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="font-medium">{p.name}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${STATUS_STYLE[p.status] ?? "bg-stone-100"}`}>
-                      {p.status}
+                    <span className="flex items-center gap-2">
+                      <span className={`rounded-full px-2 py-0.5 text-xs ${STATUS_STYLE[p.status] ?? "bg-stone-100"}`}>
+                        {p.status}
+                      </span>
+                      <button
+                        onClick={(e) => removeProject(e, p)}
+                        title="Delete project"
+                        className="rounded-md px-1.5 py-0.5 text-stone-300 opacity-0 transition hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+                      >
+                        ✕
+                      </button>
                     </span>
                   </div>
                   <p className="mt-1 truncate text-xs text-stone-500">{p.repoUrl}</p>

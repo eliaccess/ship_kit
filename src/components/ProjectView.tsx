@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import WizardPanel from "./WizardPanel";
 import BuildsPanel from "./BuildsPanel";
 import ChatPanel from "./ChatPanel";
@@ -35,6 +36,20 @@ type Tab = (typeof TABS)[number];
 export default function ProjectView({ id }: { id: string }) {
   const [project, setProject] = useState<Project | null>(null);
   const [tab, setTab] = useState<Tab>("Overview");
+  const router = useRouter();
+
+  useEffect(() => {
+    // Deep-link support: /projects/x?tab=Chat
+    const wanted = new URLSearchParams(window.location.search).get("tab");
+    if (wanted && (TABS as readonly string[]).includes(wanted)) setTab(wanted as Tab);
+  }, []);
+
+  async function removeProject() {
+    if (!project) return;
+    if (!confirm(`Delete "${project.name}"? This removes its local workspace, builds and chat history.`)) return;
+    await fetch(`/api/projects/${id}`, { method: "DELETE" });
+    router.push("/");
+  }
 
   const load = useCallback(
     () =>
@@ -61,12 +76,20 @@ export default function ProjectView({ id }: { id: string }) {
           <h1 className="text-xl font-semibold">{project.name}</h1>
           <p className="text-xs text-stone-500">{project.repoUrl}</p>
         </div>
-        <button
-          onClick={() => fetch(`/api/projects/${id}/sync`, { method: "POST" }).then(load)}
-          className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-100"
-        >
-          ↻ Sync repo
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => fetch(`/api/projects/${id}/sync`, { method: "POST" }).then(load)}
+            className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-100"
+          >
+            ↻ Sync repo
+          </button>
+          <button
+            onClick={removeProject}
+            className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       <nav className="flex gap-1 rounded-xl bg-stone-200/60 p-1 text-sm">

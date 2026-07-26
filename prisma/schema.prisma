@@ -23,6 +23,8 @@ model Project {
   status    String   @default("created")
   statusMsg String?
   isExpo    Boolean  @default(false)
+  // expo | lovable | web | unknown
+  kind      String?
   appName   String?
   bundleId  String?
   createdAt DateTime @default(now())

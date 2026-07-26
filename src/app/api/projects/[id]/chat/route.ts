@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { chatTurn } from "@/lib/chat/claude";
+import { chatTurn } from "@/lib/chat/agent";
 
 export const maxDuration = 600;
 

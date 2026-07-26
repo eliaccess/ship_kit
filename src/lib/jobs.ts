@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { cloneOrPull, detectExpo } from "./git";
+import { cloneOrPull, detectKind } from "./git";
 import { runBuild } from "./builds/eas";
 
 const POLL_MS = 3000;
@@ -18,14 +18,16 @@ async function handle(type: string, payload: Record<string, string>): Promise<vo
     await db.project.update({ where: { id: project.id }, data: { status: "cloning", statusMsg: null } });
     try {
       const dir = await cloneOrPull(project.id, project.repoUrl);
-      const isExpo = detectExpo(dir);
+      const kind = detectKind(dir);
+      const messages: Record<string, string> = {
+        expo: "Expo app detected — ready to build.",
+        lovable: "Lovable project detected — it needs a rework into a native app before building (the AI agent can do it).",
+        web: "Web app detected — it needs a rework into a native app before building (the AI agent can do it).",
+        unknown: "Repository linked, but we couldn't recognize the project type (no package.json?).",
+      };
       await db.project.update({
         where: { id: project.id },
-        data: {
-          status: "ready",
-          isExpo,
-          statusMsg: isExpo ? "Expo app detected — ready to build." : "Repository linked. Not an Expo app yet — use Chat to convert it.",
-        },
+        data: { status: "ready", isExpo: kind === "expo", kind, statusMsg: messages[kind] },
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

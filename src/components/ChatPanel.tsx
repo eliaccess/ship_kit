@@ -12,17 +12,30 @@ export default function ChatPanel({ projectId }: { projectId: string }) {
   const [liveText, setLiveText] = useState("");
   const [liveTools, setLiveTools] = useState<string[]>([]);
   const [agentFix, setAgentFix] = useState<string | null>(null);
+  const [agentLabel, setAgentLabel] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/chat`).then((r) => r.json()).then(setMessages);
-    fetch("/api/doctor")
+    fetch("/api/agents")
       .then((r) => r.json())
       .then((d) => {
-        const claude = d.checks?.find((c: { id: string }) => c.id === "claude");
-        setAgentFix(claude && !claude.ok ? claude.fixMarkdown : null);
+        const active = d.agents?.find((a: { id: string }) => a.id === (d.selected ?? "claude"));
+        if (!active) return;
+        setAgentLabel(active.label);
+        setAgentFix(
+          active.detected
+            ? null
+            : `Your selected coding agent (**${active.label}**) isn't installed on this machine.\n\n${active.installMarkdown}\n\nOr pick a different agent on the [welcome screen](/welcome).`
+        );
       })
       .catch(() => {});
+    // Arriving from import with ?convert=1 → prefill the conversion request.
+    if (new URLSearchParams(window.location.search).get("convert") === "1") {
+      setInput(
+        "This repository is a web app. Please rework it into a native Expo (React Native) mobile app: keep the same screens, features and branding, and make it buildable with EAS. Explain what you did when finished."
+      );
+    }
   }, [projectId]);
 
   useEffect(() => {
@@ -118,7 +131,7 @@ export default function ChatPanel({ projectId }: { projectId: string }) {
               send();
             }
           }}
-          placeholder={streaming ? "Working…" : "Describe the change you want…"}
+          placeholder={streaming ? `${agentLabel ?? "Agent"} is working…` : "Describe the change you want…"}
           disabled={streaming}
           className="flex-1 resize-none rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none disabled:bg-stone-50"
         />
