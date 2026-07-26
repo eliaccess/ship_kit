@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import AssetUpload from "./AssetUpload";
+
+// Steps whose card embeds the raw-asset drop zone (screenshots / icon source).
+const UPLOAD_STEPS = new Set(["store-screenshots", "store-icon"]);
 
 type WizardInput = { name: string; label: string; type: "text" | "textarea"; secret: boolean; placeholder?: string };
 
@@ -97,6 +101,7 @@ export default function WizardPanel({ projectId }: { projectId: string }) {
                         <div className="prose-instructions">
                           <ReactMarkdown>{step.instructionsMarkdown}</ReactMarkdown>
                         </div>
+                        {UPLOAD_STEPS.has(step.id) && <AssetUpload projectId={projectId} />}
                         {step.inputs.length > 0 && (
                           <div className="mt-4 space-y-3">
                             {step.inputs.map((input) => (

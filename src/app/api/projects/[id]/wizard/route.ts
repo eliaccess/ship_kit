@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
 import { db } from "@/lib/db";
+import { workspaceDir } from "@/lib/paths";
 import { encrypt } from "@/lib/crypto";
 import { setSetting } from "@/lib/settings";
 import { WIZARD_STEPS, getStep } from "@/lib/wizard/steps";
@@ -21,6 +24,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   // A step is done when its EVIDENCE exists, wherever the value was entered
   // (wizard, Settings page, import-error recovery…) — not only via this form.
+  const assetsDir = path.join(workspaceDir(id), "store-assets");
+  const rawShots = (() => {
+    try {
+      return fs.readdirSync(path.join(assetsDir, "raw")).filter((f) => /\.(png|jpe?g|webp)$/i.test(f)).length;
+    } catch {
+      return 0;
+    }
+  })();
+
   const evidence: Record<string, boolean> = {
     "github-pat": hasSetting("github_pat"),
     "expo-account-token": hasSetting("expo_token"),
@@ -28,6 +40,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     "play-service-account": hasCred("play_service_account_json"),
     "app-identity": Boolean(project?.appName && project?.bundleId),
     "google-signin-oauth": hasCred("google_web_client_id"),
+    "store-screenshots": rawShots > 0,
+    "store-visuals-generate": fs.existsSync(path.join(assetsDir, "feature-graphic.png")),
   };
 
   const steps = WIZARD_STEPS.map((s) => {

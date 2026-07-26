@@ -171,6 +171,11 @@ export const WIZARD_STEPS: WizardStepDef[] = [
         ? null
         : "Project IDs are 6–30 characters: lowercase letters, digits and hyphens, starting with a letter.",
   }),
+
+  // ── Phase 7: Store visuals ──────────────────────────────────────────────
+  step("store-icon", "7. Store visuals", {}),
+  step("store-screenshots", "7. Store visuals", {}),
+  step("store-visuals-generate", "7. Store visuals", { requires: ["store-icon", "store-screenshots"] }),
 ];
 
 export function getStep(id: string): WizardStepDef | undefined {

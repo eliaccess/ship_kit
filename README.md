@@ -40,6 +40,9 @@ ShipKit puts an abstraction layer over all of it:
 - **🗄 Backend awareness** — Lovable apps keep their existing Supabase backend untouched (same
   data, same logins — nothing to deploy); apps with a custom API server get a guided path where
   the agent deploys it to Google Cloud Run under your account, keyless, with health checks.
+- **🖼 Store visuals, generated** — you provide one 1024×1024 icon and up to 6 raw screenshots
+  (drag-and-drop); the agent derives every asset both stores demand: icon sets, exact-size
+  screenshots (1284×2778 / 1080×2160), and the Google Play feature graphic everyone forgets.
 
 ## A tour in screenshots
 
@@ -149,7 +152,7 @@ credentials, chat history) and `storage/` (cloned repos, build artifacts, logs).
 - [ ] OTA updates (`eas update`) after chat changes — see edits on your phone in seconds without rebuilding
 - [ ] One-click `eas submit` to TestFlight / Play internal testing
 - [ ] Live verification of pasted credentials (ping ASC / Play APIs)
-- [ ] Store-listing generator (screenshots, privacy questionnaire answers)
+- [ ] Store-listing texts & privacy questionnaire answers (visuals are done — see the Store visuals phase)
 - [ ] Transactional email & legal-pages phases (the remaining launch-playbook steps)
 - [ ] Fully offline build mode (no Expo account: `expo prebuild` + Gradle/Xcode, keystore in the local vault) — opt-in, for advanced users
 - [ ] Packaged desktop app (Tauri/Electron) so non-technical users skip the Node/Git install

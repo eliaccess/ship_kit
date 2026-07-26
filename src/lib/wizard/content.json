@@ -89,5 +89,26 @@
     "clockNote": "Creating a Google Cloud account takes ~10 minutes; new accounts include free credits.",
     "instructionsMarkdown": "**Skip this entirely if your backend is Supabase** (see the previous step).\n\n1. Go to https://console.cloud.google.com and sign in. Use **ONE Google account** for everything Google (Cloud, Play Console, Firebase) — mixing accounts is the #1 cause of confusing permission errors.\n2. Create a **new project** (top bar → project picker → New project). Note its **Project ID** (shown under the name — it can't be changed later).\n3. Enable **billing** on the project (Menu → Billing). New accounts get free credits; a small API on the cheapest settings usually costs a few euros per month.\n4. Install the **Google Cloud CLI** on this machine — Settings → *Your machine* shows the status and install steps. Then run `gcloud auth login` and `gcloud auth application-default login` in a terminal (each opens a browser to sign in).\n5. Paste your Project ID below and save.\n6. Open the **Chat** tab and ask: \"Deploy my backend to Google Cloud Run, project <your-project-id>\". The agent sets everything up **keyless** (no credential files on disk), runs the database migrations, and verifies the deployment health before reporting back.\n   - ⚠ If a Google console page shows a permission error mentioning `resourcemanager.projects.get`, you are signed into the **wrong Google account** — switch accounts, don't change permissions.",
     "verifyHints": "Project IDs are 6–30 characters, lowercase letters/digits/hyphens (e.g. my-app-prod-4821)."
+  },
+  "store-icon": {
+    "title": "Your app icon (the source of everything)",
+    "summary": "One 1024×1024 icon drives every store visual — store icons, Android icon set, logos, favicon, feature graphic.",
+    "clockNote": null,
+    "instructionsMarkdown": "Every visual the stores need is derived from **one square icon**, ideally 1024×1024 pixels.\n\n1. **Already have a logo?** Export it as a **1024×1024 PNG** (from Lovable, Figma, Canva…), name the file exactly `icon-source.png`, and drop it in the upload box below.\n2. **No file at hand?** Your app probably already contains its logo — open the Chat and ask: \"Find the best icon source in my app and tell me if it's good enough for the stores.\"\n3. ⚠ **Never use a small image scaled up** — blurry icons get flagged by both stores. Bigger than 1024 is fine (it scales down cleanly); smaller is not.\n\nMark this step done once a good source exists.",
+    "verifyHints": "A square PNG, at least 1024×1024, on a solid or simple background — no screenshots, no text-heavy images."
+  },
+  "store-screenshots": {
+    "title": "Take your 6 store screenshots",
+    "summary": "Screenshots ARE your store page — take up to 6 raw captures; ShipKit derives every required size from them.",
+    "clockNote": null,
+    "instructionsMarkdown": "Shoppers decide from screenshots. You take the raw captures (only you know what looks good); the AI turns them into every size the stores demand.\n\n1. Install your app on a phone (Builds tab) — or use the simulator — and fill it with **nice-looking demo data** (real-looking names, a few entries, no empty screens).\n2. Capture up to **6 screens**, in this story order (skip what doesn't apply — 4 is fine):\n   1. Home — the first impression\n   2. Your core flow — the thing the app is FOR\n   3. Your differentiator — what competitors don't have\n   4. Stats / progress — the payoff over time\n   5. AI feature — if you have one\n   6. Social / sharing — if you have it\n3. Use the **biggest phone you have**, in **portrait**. Screenshots at full device resolution — don't compress or crop them yourself.\n4. Drop them in the upload box below.",
+    "verifyHints": "PNG or JPG, portrait, straight from the device (no editing needed)."
+  },
+  "store-visuals-generate": {
+    "title": "Let the AI produce every store asset",
+    "summary": "The agent derives icon sets, resized screenshots and the Google Play feature graphic — everything lands in one folder.",
+    "clockNote": null,
+    "instructionsMarkdown": "1. Open the **Chat** tab and ask: **\"Generate my store visuals.\"**\n2. The agent produces, from your icon and raw screenshots:\n   - **Icon set**: App Store icon (1024), the full Android adaptive set, OAuth consent logo (120×120), website/apple-touch icons, favicon.\n   - **App Store screenshots** at 1284×2778 (the size Apple actually asks for at upload).\n   - **Google Play screenshots** at 1080×2160.\n   - **Play feature graphic** (1024×500) — required by Google Play with no iOS equivalent; it's the one everyone forgets. Composed from your icon and brand colors, never a stretched screenshot.\n3. Everything lands in the `store-assets` folder of your project. Want changes? Just tell the chat in plain language: \"make the feature graphic background darker\", \"use the tagline 'Train smarter'\".\n\n⚠ This uses your Mac's built-in image tools (`sips`) plus Python's Pillow — the agent checks both and tells you (with an Action card) if something's missing.",
+    "verifyHints": "Done when store-assets/ contains icons/, appstore/, play/ and feature-graphic.png."
   }
 }
