@@ -17,7 +17,9 @@ function computeReadiness(
     const mode = modes[platform];
     if (!mode) return { platform, mode, ready: false, missing: ["no method selected yet"] };
     const missing: string[] = [];
-    if (!ok("expo-token")) missing.push("Expo token (Setup tab)");
+    // The token is needed even for local builds: EAS orchestrates them and the
+    // app's signing keys live in the user's Expo account (free for local builds).
+    if (!ok("expo-token")) missing.push("Expo token — free, holds your app's signing keys, needed even for local builds (Setup tab)");
     if (mode === "local") {
       if (platform === "android") {
         if (!ok("android-sdk")) missing.push("Android SDK");

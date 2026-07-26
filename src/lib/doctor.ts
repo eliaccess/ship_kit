@@ -100,7 +100,7 @@ export async function runDoctor(): Promise<DoctorCheck[]> {
     detail: expoToken ? "configured" : "missing",
     fixMarkdown: expoToken
       ? null
-      : "Builds are driven by Expo's EAS tooling even in local mode. Complete the **Expo account** step in any project's Setup tab (free account + access token), or paste the token in Settings.",
+      : "Needed for **both** cloud and local builds: builds are driven by Expo's EAS tooling, and your app's **signing keys** (Android keystore, iOS certificates) are stored in your Expo account — that's what makes cloud and local builds interchangeable. Local builds are free and unlimited (the ~30/month quota only applies to cloud builds). Complete the **Expo account** step in any project's Setup tab, or paste the token in Settings.",
   });
 
   // ── Android local toolchain ───────────────────────────────────────────
