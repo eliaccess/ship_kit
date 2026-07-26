@@ -5,7 +5,7 @@ import { db } from "../db";
 import { decrypt } from "../crypto";
 import { getSetting, SETTING_KEYS } from "../settings";
 import { cloneOrPull, run, detectExpo } from "../git";
-import { buildLogPath, ensureDir } from "../paths";
+import { buildLogPath, artifactDir, ensureDir } from "../paths";
 
 const DEFAULT_EAS_JSON = {
   cli: { appVersionSource: "remote" },
@@ -90,33 +90,51 @@ export async function runBuild(buildId: string): Promise<void> {
       log("App Store Connect API key staged for signing.\n");
     }
 
+    const mode = (await getSetting(`build_mode_${build.platform}`)) ?? "cloud";
     const args = [
       "--yes", "eas-cli",
       "build",
       "--platform", build.platform,
       "--profile", build.profile,
       "--non-interactive",
-      "--json",
-      "--wait",
     ];
-    log(`\n$ npx eas-cli build --platform ${build.platform} --profile ${build.profile}\n\n`);
+
+    let localOutput: string | null = null;
+    if (mode === "local") {
+      const ext = build.platform === "android" ? "apk" : "ipa";
+      localOutput = path.join(ensureDir(artifactDir(build.projectId)), `${buildId}.${ext}`);
+      args.push("--local", "--output", localOutput);
+      log(`Build mode: LOCAL (on this machine). Requires the toolchain from Settings → Machine check.\n`);
+    } else {
+      args.push("--json", "--wait");
+      log(`Build mode: CLOUD (Expo EAS servers, under your Expo account).\n`);
+    }
+
+    log(`\n$ npx eas-cli build --platform ${build.platform} --profile ${build.profile}${mode === "local" ? " --local" : ""}\n\n`);
     const res = await run("npx", args, { cwd: dir, env, onOutput: log });
     if (res.code !== 0) throw new Error(`EAS build failed (exit ${res.code}) — see log`);
 
-    // --json prints an array of build results on stdout; find the artifact URL.
-    const jsonMatch = res.output.match(/\[\s*{[\s\S]*}\s*\]/);
     let artifactUrl: string | null = null;
-    if (jsonMatch) {
-      try {
-        const parsed = JSON.parse(jsonMatch[0]);
-        artifactUrl = parsed[0]?.artifacts?.buildUrl ?? parsed[0]?.artifacts?.applicationArchiveUrl ?? null;
-      } catch {
-        /* fall through */
+    if (mode === "local") {
+      if (!localOutput || !fs.existsSync(localOutput)) {
+        throw new Error("Local build finished but no artifact file was produced — see log");
       }
-    }
-    if (!artifactUrl) {
-      const urlMatch = res.output.match(/https:\/\/expo\.dev\/artifacts\/\S+/);
-      artifactUrl = urlMatch ? urlMatch[0] : null;
+      artifactUrl = localOutput;
+    } else {
+      // --json prints an array of build results on stdout; find the artifact URL.
+      const jsonMatch = res.output.match(/\[\s*{[\s\S]*}\s*\]/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[0]);
+          artifactUrl = parsed[0]?.artifacts?.buildUrl ?? parsed[0]?.artifacts?.applicationArchiveUrl ?? null;
+        } catch {
+          /* fall through */
+        }
+      }
+      if (!artifactUrl) {
+        const urlMatch = res.output.match(/https:\/\/expo\.dev\/artifacts\/\S+/);
+        artifactUrl = urlMatch ? urlMatch[0] : null;
+      }
     }
 
     await db.build.update({

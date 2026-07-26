@@ -5,11 +5,21 @@ export async function GET() {
   return NextResponse.json(await settingsPresence());
 }
 
+const SECRET_KEYS = new Set(["github_pat", "expo_token"]);
+const BUILD_MODE_KEYS = new Set(["build_mode_android", "build_mode_ios"]);
+
 export async function POST(req: NextRequest) {
   const { key, value } = (await req.json()) as { key: string; value: string };
-  const allowed = new Set(["github_pat", "expo_token"]);
-  if (!allowed.has(key)) return NextResponse.json({ error: "Unknown setting" }, { status: 400 });
   if (!value?.trim()) return NextResponse.json({ error: "Empty value" }, { status: 400 });
-  await setSetting(key, value.trim());
+  if (SECRET_KEYS.has(key)) {
+    await setSetting(key, value.trim(), true);
+  } else if (BUILD_MODE_KEYS.has(key)) {
+    if (value !== "cloud" && value !== "local") {
+      return NextResponse.json({ error: "Build mode must be cloud or local" }, { status: 400 });
+    }
+    await setSetting(key, value, false);
+  } else {
+    return NextResponse.json({ error: "Unknown setting" }, { status: 400 });
+  }
   return NextResponse.json({ ok: true });
 }

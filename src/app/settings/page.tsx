@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import MachinePanel from "@/components/MachinePanel";
 
 const FIELDS = [
   { key: "github_pat", label: "GitHub personal access token", hint: "Lets ShipKit clone your private repositories (read-only Contents permission)." },
@@ -33,8 +34,9 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-xl space-y-6">
-      <h1 className="text-lg font-semibold">Platform settings</h1>
+    <div className="max-w-xl space-y-10">
+      <MachinePanel />
+      <h1 className="text-lg font-semibold">Tokens</h1>
       <p className="text-sm text-stone-500">
         Tokens are encrypted at rest. The Setup tab of each project walks you through creating them —
         this page is just where to update them later.

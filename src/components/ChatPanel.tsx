@@ -11,10 +11,18 @@ export default function ChatPanel({ projectId }: { projectId: string }) {
   const [streaming, setStreaming] = useState(false);
   const [liveText, setLiveText] = useState("");
   const [liveTools, setLiveTools] = useState<string[]>([]);
+  const [agentFix, setAgentFix] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/chat`).then((r) => r.json()).then(setMessages);
+    fetch("/api/doctor")
+      .then((r) => r.json())
+      .then((d) => {
+        const claude = d.checks?.find((c: { id: string }) => c.id === "claude");
+        setAgentFix(claude && !claude.ok ? claude.fixMarkdown : null);
+      })
+      .catch(() => {});
   }, [projectId]);
 
   useEffect(() => {
@@ -70,7 +78,15 @@ export default function ChatPanel({ projectId }: { projectId: string }) {
   return (
     <div className="flex h-[70vh] flex-col rounded-xl border border-stone-200 bg-white shadow-sm">
       <div className="flex-1 space-y-4 overflow-y-auto p-4">
-        {messages.length === 0 && !streaming && (
+        {agentFix && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="mb-2 text-sm font-semibold text-amber-900">Connect your coding agent</p>
+            <div className="prose-instructions">
+              <ReactMarkdown>{agentFix}</ReactMarkdown>
+            </div>
+          </div>
+        )}
+        {messages.length === 0 && !streaming && !agentFix && (
           <div className="mt-8 text-center text-sm text-stone-400">
             <p className="font-medium text-stone-500">Ask for anything, in plain language.</p>
             <p className="mt-2">“Convert this Lovable web app into an Expo mobile app”</p>

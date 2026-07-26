@@ -1,0 +1,159 @@
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { run } from "./git";
+import { getSetting, SETTING_KEYS } from "./settings";
+
+export type DoctorCheck = {
+  id: string;
+  label: string;
+  group: "core" | "agent" | "expo" | "android-local" | "ios-local";
+  ok: boolean;
+  detail: string;
+  fixMarkdown: string | null;
+};
+
+async function cmdVersion(cmd: string, args: string[], timeoutMs = 15000): Promise<string | null> {
+  try {
+    const res = await Promise.race([
+      run(cmd, args),
+      new Promise<{ code: number; output: string }>((resolve) =>
+        setTimeout(() => resolve({ code: 124, output: "timeout" }), timeoutMs)
+      ),
+    ]);
+    return res.code === 0 ? res.output.trim().split("\n")[0] : null;
+  } catch {
+    return null;
+  }
+}
+
+function findAndroidSdk(): string | null {
+  const candidates = [
+    process.env.ANDROID_HOME,
+    process.env.ANDROID_SDK_ROOT,
+    path.join(os.homedir(), "Library/Android/sdk"),
+    path.join(os.homedir(), "Android/Sdk"),
+  ].filter(Boolean) as string[];
+  return candidates.find((c) => fs.existsSync(c)) ?? null;
+}
+
+export async function runDoctor(): Promise<DoctorCheck[]> {
+  const checks: DoctorCheck[] = [];
+
+  // ── Core ──────────────────────────────────────────────────────────────
+  const node = process.versions.node;
+  checks.push({
+    id: "node",
+    label: "Node.js",
+    group: "core",
+    ok: true,
+    detail: `v${node}`,
+    fixMarkdown: null,
+  });
+
+  const git = await cmdVersion("git", ["--version"]);
+  checks.push({
+    id: "git",
+    label: "Git",
+    group: "core",
+    ok: !!git,
+    detail: git ?? "not found",
+    fixMarkdown: git ? null : "Install Git: on macOS run `xcode-select --install`, on Linux `sudo apt install git`, on Windows install from https://git-scm.com.",
+  });
+
+  // ── Coding agent (Claude Code) ────────────────────────────────────────
+  const claude = await cmdVersion("claude", ["--version"]);
+  checks.push({
+    id: "claude",
+    label: "Claude Code (the coding agent behind Chat)",
+    group: "agent",
+    ok: !!claude,
+    detail: claude ?? "not found",
+    fixMarkdown: claude
+      ? null
+      : [
+          "The Chat tab uses **Claude Code**, Anthropic's coding agent, running on *your* account:",
+          "1. Install it: `npm install -g @anthropic-ai/claude-code`",
+          "2. Open a terminal and run `claude` once — it will ask you to log in (a Claude Pro/Max subscription or an Anthropic API key both work).",
+          "3. Refresh this page.",
+          "",
+          "Nothing is billed to ShipKit — the agent runs locally under your own Anthropic account.",
+        ].join("\n"),
+  });
+
+  // ── Expo (needed for BOTH cloud and local builds) ─────────────────────
+  const expoToken = await getSetting(SETTING_KEYS.EXPO_TOKEN);
+  checks.push({
+    id: "expo-token",
+    label: "Expo account token",
+    group: "expo",
+    ok: !!expoToken,
+    detail: expoToken ? "configured" : "missing",
+    fixMarkdown: expoToken
+      ? null
+      : "Builds are driven by Expo's EAS tooling even in local mode. Complete the **Expo account** step in any project's Setup tab (free account + access token), or paste the token in Settings.",
+  });
+
+  // ── Android local toolchain ───────────────────────────────────────────
+  const sdk = findAndroidSdk();
+  checks.push({
+    id: "android-sdk",
+    label: "Android SDK (local Android builds)",
+    group: "android-local",
+    ok: !!sdk,
+    detail: sdk ?? "not found",
+    fixMarkdown: sdk
+      ? null
+      : [
+          "Only needed if you switch Android builds to **local** mode (unlimited, no cloud quota):",
+          "1. Install [Android Studio](https://developer.android.com/studio) (easiest) — it installs the SDK to `~/Library/Android/sdk` (macOS) or `~/Android/Sdk` (Linux).",
+          "2. Or set `ANDROID_HOME` to an existing SDK location.",
+          "Cloud mode (default) needs none of this.",
+        ].join("\n"),
+  });
+
+  const java = (await cmdVersion("java", ["--version"])) ?? (await cmdVersion("/opt/homebrew/opt/openjdk/bin/java", ["--version"]));
+  checks.push({
+    id: "java",
+    label: "Java JDK (local Android builds)",
+    group: "android-local",
+    ok: !!java,
+    detail: java ?? "not found",
+    fixMarkdown: java ? null : "Install a JDK: on macOS `brew install openjdk`, on Linux `sudo apt install openjdk-17-jdk`. Only needed for local Android builds.",
+  });
+
+  // ── iOS local toolchain (macOS only) ──────────────────────────────────
+  if (process.platform === "darwin") {
+    const xcode = await cmdVersion("xcodebuild", ["-version"]);
+    checks.push({
+      id: "xcode",
+      label: "Xcode (local iOS builds)",
+      group: "ios-local",
+      ok: !!xcode,
+      detail: xcode ?? "not found",
+      fixMarkdown: xcode
+        ? null
+        : "Install Xcode from the Mac App Store, open it once to accept the license, then run `sudo xcode-select -s /Applications/Xcode.app`. Only needed for local iOS builds — cloud mode builds iOS without Xcode.",
+    });
+    const pods = await cmdVersion("pod", ["--version"]);
+    checks.push({
+      id: "cocoapods",
+      label: "CocoaPods (local iOS builds)",
+      group: "ios-local",
+      ok: !!pods,
+      detail: pods ? `v${pods}` : "not found",
+      fixMarkdown: pods ? null : "Install CocoaPods: `brew install cocoapods` (or `sudo gem install cocoapods`). Only needed for local iOS builds.",
+    });
+  } else {
+    checks.push({
+      id: "xcode",
+      label: "Xcode (local iOS builds)",
+      group: "ios-local",
+      ok: false,
+      detail: "iOS builds require macOS",
+      fixMarkdown: "Local iOS builds need a Mac. On this machine, keep iOS builds in **cloud** mode (EAS builds iOS remotely — no Mac needed).",
+    });
+  }
+
+  return checks;
+}
