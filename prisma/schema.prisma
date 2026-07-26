@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Global settings (GitHub PAT, EXPO_TOKEN, ...). Secret values are AES-256-GCM encrypted.
+model Setting {
+  key       String   @id
+  value     String
+  secret    Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  name      String
+  repoUrl   String
+  // created -> cloning -> ready | error
+  status    String   @default("created")
+  statusMsg String?
+  isExpo    Boolean  @default(false)
+  appName   String?
+  bundleId  String?
+  createdAt DateTime @default(now())
+
+  builds      Build[]
+  credentials Credential[]
+  wizardSteps WizardState[]
+  messages    ChatMessage[]
+}
+
+// Per-project pasted credentials (ASC .p8, Play service-account JSON, ...), encrypted at rest.
+model Credential {
+  id        String   @id @default(cuid())
+  projectId String
+  key       String
+  value     String
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, key])
+}
+
+model WizardState {
+  id        String   @id @default(cuid())
+  projectId String
+  stepId    String
+  // pending | done | skipped
+  status    String   @default("pending")
+  // JSON of non-secret submitted values
+  data      String?
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, stepId])
+}
+
+model Build {
+  id          String    @id @default(cuid())
+  projectId   String
+  platform    String // android | ios
+  profile     String    @default("preview")
+  // queued | running | success | failed
+  status      String    @default("queued")
+  artifactUrl String?
+  logPath     String?
+  error       String?
+  createdAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  projectId String
+  role      String // user | assistant | system
+  content   String
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Job {
+  id         String    @id @default(cuid())
+  type       String // clone | build
+  payload    String // JSON
+  status     String    @default("queued") // queued | running | done | failed
+  error      String?
+  createdAt  DateTime  @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+}

@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-stone-50 text-stone-900 antialiased;
+}
+
+.prose-instructions {
+  @apply text-sm leading-relaxed text-stone-700;
+}
+.prose-instructions h1,
+.prose-instructions h2,
+.prose-instructions h3 {
+  @apply font-semibold text-stone-900 mt-3 mb-1;
+}
+.prose-instructions ol {
+  @apply list-decimal pl-5 space-y-1.5 my-2;
+}
+.prose-instructions ul {
+  @apply list-disc pl-5 space-y-1 my-2;
+}
+.prose-instructions a {
+  @apply text-blue-700 underline break-all;
+}
+.prose-instructions code {
+  @apply bg-stone-100 rounded px-1 py-0.5 text-[13px];
+}
+.prose-instructions strong {
+  @apply font-semibold text-stone-900;
+}
+.prose-instructions p {
+  @apply my-1.5;
+}
