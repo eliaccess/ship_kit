@@ -4,7 +4,7 @@ import { detectKind } from "../git";
 import { workspaceDir } from "../paths";
 
 /** A short line starting with an emoji = one activity-feed step. */
-export function isStepLine(line: string): boolean {
+function isStepLine(line: string): boolean {
   return /^\p{Extended_Pictographic}/u.test(line) && line.length <= 120;
 }
 

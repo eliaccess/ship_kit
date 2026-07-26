@@ -1,8 +1,24 @@
+# dependencies / build output
 node_modules/
 .next/
-.env
 *.tsbuildinfo
 next-env.d.ts
+
+# environment & secrets — never commit; .env.example is the template
+.env
+.env.*
+!.env.example
+
+# local data: SQLite db, cloned user repos, build artifacts & logs
 prisma/dev.db*
 storage/
+
+# logs
+*.log
+npm-debug.log*
+
+# OS / editor noise
 .DS_Store
+.vscode/
+.idea/
+.claude/
